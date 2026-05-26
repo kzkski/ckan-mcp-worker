@@ -1,0 +1,3 @@
+# ローカル開発用（.dev.vars にコピーして使用）
+ADMIN_TOKEN=your-secret-admin-token
+LOG_HASH_SALT=optional-salt-for-ip-hashing
