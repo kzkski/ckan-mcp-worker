@@ -7,11 +7,6 @@ import {
   type JsonRpcRequest,
   type JsonRpcResponse,
 } from "./json-rpc";
-import {
-  getSseSession,
-  registerSseSession,
-  removeSseSession,
-} from "./sse-sessions";
 
 function sseDataLine(payload: JsonRpcResponse): string {
   return `data: ${JSON.stringify(payload)}\n\n`;
@@ -36,81 +31,6 @@ async function parseJsonRpcBody(
   } catch {
     return c.json({ error: "Invalid JSON body" }, 400);
   }
-}
-
-export function handleSseConnect(c: Context<{ Bindings: Env }>): Response {
-  const sessionId = crypto.randomUUID();
-  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
-  const writer = writable.getWriter();
-  const encoder = new TextEncoder();
-
-  const write = async (text: string) => {
-    await writer.write(encoder.encode(text));
-  };
-
-  const close = () => {
-    removeSseSession(sessionId);
-    writer.close().catch(() => {});
-  };
-
-  registerSseSession(sessionId, { write, close });
-
-  const abortSignal = c.req.raw.signal;
-  if (abortSignal) {
-    abortSignal.addEventListener("abort", close, { once: true });
-  }
-
-  c.executionCtx.waitUntil(write("event: endpoint\ndata: /message\n\n"));
-
-  return new Response(readable, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Set-Cookie": `mcp-session-id=${sessionId}; Path=/; HttpOnly; SameSite=Lax`,
-    },
-  });
-}
-
-function resolveSseSessionId(c: Context<{ Bindings: Env }>): string | undefined {
-  const fromQuery = c.req.query("sessionId");
-  if (fromQuery) return fromQuery;
-
-  const cookie = c.req.header("Cookie") ?? "";
-  const match = cookie.match(/(?:^|;\s*)mcp-session-id=([^;]+)/);
-  return match?.[1];
-}
-
-export async function handleSseMessage(
-  c: Context<{ Bindings: Env }>
-): Promise<Response> {
-  const sessionId = resolveSseSessionId(c);
-  if (!sessionId) {
-    return c.text("Missing sessionId", 400);
-  }
-
-  const session = getSseSession(sessionId);
-  if (!session) {
-    return c.text("Session not found", 400);
-  }
-
-  const parsed = await parseJsonRpcBody(c);
-  if (parsed instanceof Response) {
-    return parsed;
-  }
-
-  if (Array.isArray(parsed)) {
-    const responses = await handleJsonRpcBatch(c, parsed);
-    for (const response of responses) {
-      await session.write(sseDataLine(response));
-    }
-    return new Response(null, { status: 202 });
-  }
-
-  const response = await handleJsonRpc(c, parsed);
-  if (response !== null) {
-    await session.write(sseDataLine(response));
-  }
-  return new Response(null, { status: 202 });
 }
 
 export async function handleMcpPost(

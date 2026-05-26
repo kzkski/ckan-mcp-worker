@@ -69,9 +69,7 @@ wrangler dev
 | GET | `/` | サーバー情報 |
 | GET | `/tools` | MCP ツール定義一覧 |
 | POST | `/tools/call` | ツール実行（REST） |
-| GET | `/sse` | 旧 SSE トランスポート（OpenCode 現行版） |
-| POST | `/message` | 旧 SSE 用 JSON-RPC 受信 |
-| POST | `/mcp` | Streamable HTTP トランスポート（新仕様） |
+| POST | `/mcp` | MCP（Streamable HTTP / JSON-RPC） |
 | GET | `/admin` | 統計ダッシュボード（HTML） |
 | GET | `/admin/api/stats` | 集計 JSON（要認証） |
 | GET | `/admin/api/logs` | 直近ログ JSON（要認証） |
@@ -144,27 +142,25 @@ npm run deploy:prod
 
 | クライアント | 推奨 |
 |--------------|------|
-| **OpenCode** | `type: "remote"` + **`/sse`**（[設定例](./opencode.json.example)） |
+| **OpenCode** | `type: "remote"` + **`/mcp`**（[設定例](./opencode.json.example)） |
 | **Cursor / Claude Desktop** | stdio ブリッジ（[`.cursor/mcp.json.example`](./.cursor/mcp.json.example)） |
 
 ### OpenCode（推奨）
 
-OpenCode のリモート MCP は **SSE トランスポートのみ**対応です。URL は **`/sse` で終える**必要があり、`/mcp`（Streamable HTTP）は使えません。
+OpenCode のリモート MCP は **Streamable HTTP（`/mcp`）** に対応しています。URL は **`/mcp` で終えて**ください。
 
 ```json
 {
   "mcp": {
     "ckan": {
       "type": "remote",
-      "url": "https://ckan-mcp-worker.workers.dev/sse"
+      "url": "https://ckan-mcp-worker.workers.dev/mcp"
     }
   }
 }
 ```
 
-ローカル（`wrangler dev` 起動中）は `http://localhost:8787/sse` に置き換えてください。
-
-SSE セッションは Worker インスタンス内のインメモリ Map で管理するため、長時間接続や複数インスタンス間での共有には制限があります。
+ローカル（`wrangler dev` 起動中）は `http://localhost:8787/mcp` に置き換えてください。
 
 ## MCP ツール
 
@@ -216,7 +212,7 @@ curl "http://localhost:8787/admin/api/logs?limit=20" \
 
 ## レート制限
 
-IP アドレス（`CF-Connecting-IP`）ごとに 60 リクエスト / 60 秒です。超過時は HTTP 429 を返します。`POST /tools/call` と `POST /mcp` に適用されます（旧 SSE の `GET /sse` / `POST /message` は対象外）。
+IP アドレス（`CF-Connecting-IP`）ごとに 60 リクエスト / 60 秒です。超過時は HTTP 429 を返します。`POST /tools/call` と `POST /mcp` に適用されます。
 
 ## キャッシュ
 

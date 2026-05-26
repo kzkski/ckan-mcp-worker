@@ -4,11 +4,7 @@ import { admin } from "./admin";
 import type { Env } from "./env";
 import { deleteOldLogs, insertRequestLog } from "./logger";
 import { PORTALS } from "./portals";
-import {
-  handleMcpPost,
-  handleSseConnect,
-  handleSseMessage,
-} from "./mcp-transport";
+import { handleMcpPost } from "./mcp-transport";
 import { handleToolCall } from "./tools-handler";
 import { TOOLS } from "./tools";
 
@@ -23,8 +19,7 @@ app.get("/", (c) => {
     description: "CKAN MCP Server for Japanese open data portals",
     portals: Object.keys(PORTALS),
     transports: {
-      sse: "GET /sse, POST /message",
-      streamableHttp: "POST /mcp",
+      mcp: "POST /mcp",
       rest: "GET /tools, POST /tools/call",
     },
   });
@@ -34,11 +29,6 @@ app.get("/tools", (c) => {
   return c.json({ tools: TOOLS });
 });
 
-// 旧 SSE トランスポート（OpenCode 現行版）
-app.get("/sse", (c) => handleSseConnect(c));
-app.post("/message", (c) => handleSseMessage(c));
-
-// Streamable HTTP トランスポート（新仕様）
 app.post("/mcp", (c) => handleMcpPost(c));
 
 app.route("/admin", admin);
