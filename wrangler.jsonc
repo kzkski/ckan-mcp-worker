@@ -6,7 +6,7 @@
 	"kv_namespaces": [
 		{
 			"binding": "CACHE_KV",
-			"id": "00000000000000000000000000000000",
+			"id": "5ce3bbdca0434accb3987d8eb384a65f",
 			"preview_id": "00000000000000000000000000000001"
 		}
 	],
@@ -14,7 +14,7 @@
 		{
 			"binding": "LOG_DB",
 			"database_name": "ckan-mcp-logs",
-			"database_id": "00000000-0000-0000-0000-000000000001"
+			"database_id": "348767bd-65ed-4f48-9d9b-6366365a23da"
 		}
 	],
 	"ratelimits": [
@@ -28,6 +28,8 @@
 		}
 	],
 	"triggers": {
-		"crons": ["0 4 * * *"]
+		"crons": [
+			"0 4 * * *"
+		]
 	}
 }
