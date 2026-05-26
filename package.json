@@ -12,6 +12,8 @@
     "db:migrate:remote": "wrangler d1 migrations apply ckan-mcp-logs --remote",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run test",
+    "test:portals": "node scripts/test-portals.mjs",
+    "test:portals:worker": "node scripts/test-portals.mjs --worker",
     "setup:prod": "bash scripts/setup-prod.sh",
     "deploy:prod": "wrangler d1 migrations apply ckan-mcp-logs --remote && wrangler deploy",
     "mcp:bridge": "node scripts/mcp-stdio-bridge.mjs"
