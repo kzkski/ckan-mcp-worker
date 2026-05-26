@@ -3,13 +3,13 @@
   "mcp": {
     "ckan-open-data-local": {
       "type": "remote",
-      "url": "http://localhost:8787/sse",
+      "url": "http://localhost:8787/mcp",
       "enabled": true,
       "timeout": 60000
     },
     "ckan-open-data-production": {
       "type": "remote",
-      "url": "https://ckan-mcp-worker.YOUR_SUBDOMAIN.workers.dev/sse",
+      "url": "https://ckan-mcp-worker.YOUR_SUBDOMAIN.workers.dev/mcp",
       "enabled": false,
       "timeout": 120000
     }

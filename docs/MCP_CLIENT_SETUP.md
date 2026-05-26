@@ -1,12 +1,11 @@
 # MCP クライアント接続ガイド
 
-この Worker は MCP トランスポート（**`/sse`**・`/mcp`）と REST API（`GET /tools`・`POST /tools/call`）を提供します。
+この Worker は MCP トランスポート（**`POST /mcp`**）と REST API（`GET /tools`・`POST /tools/call`）を提供します。
 
 | 接続方式 | 向いている用途 |
 |----------|----------------|
-| **`type: "remote"` + `/sse`**（推奨） | **OpenCode**（リモート MCP は SSE のみ対応） |
+| **`type: "remote"` + `/mcp`**（推奨） | **OpenCode**（Streamable HTTP） |
 | **stdio ブリッジ** | Cursor、Claude Desktop |
-| **`POST /mcp`**（Streamable HTTP） | OpenCode 非対応。将来のクライアント向け |
 | **HTTP を直接呼ぶ** | curl、自作アプリ、n8n 等 |
 
 `ADMIN_TOKEN` は **管理画面（`/admin`）専用**です。MCP ツールの利用には不要です。
@@ -69,11 +68,11 @@
 
 ---
 
-## 2. OpenCode（推奨: リモート SSE）
+## 2. OpenCode（推奨: リモート MCP）
 
 OpenCode は `opencode.json` の `mcp` で **`type: "remote"`** を指定します。
 
-> **重要:** OpenCode のリモート MCP は **SSE トランスポート（`/sse`）のみ**対応です。`POST /mcp` の Streamable HTTP は **使えません**。URL は必ず **`/sse` で終えて**ください。
+> **重要:** OpenCode のリモート MCP は **Streamable HTTP（`/mcp`）** を使います。URL は **`/mcp` で終えて**ください（`/sse` の旧 SSE トランスポートは提供していません）。
 
 ### 2-1. 設定例
 
@@ -92,7 +91,7 @@ mkdir -p .opencode && cp .opencode/opencode.json.example .opencode/opencode.json
   "mcp": {
     "ckan-open-data": {
       "type": "remote",
-      "url": "https://ckan-mcp-worker.YOUR_SUBDOMAIN.workers.dev/sse",
+      "url": "https://ckan-mcp-worker.YOUR_SUBDOMAIN.workers.dev/mcp",
       "enabled": true,
       "timeout": 120000
     }
@@ -103,14 +102,10 @@ mkdir -p .opencode && cp .opencode/opencode.json.example .opencode/opencode.json
 **ローカル**（`npm run dev` 起動中）:
 
 ```json
-"url": "http://localhost:8787/sse"
+"url": "http://localhost:8787/mcp"
 ```
 
-接続の流れ:
-
-1. OpenCode が `GET /sse` で SSE を開く
-2. Worker が `event: endpoint` / `data: /message` を送信し、セッション Cookie を設定
-3. OpenCode が `POST /message` で JSON-RPC を送り、応答を SSE で受信
+OpenCode が `POST /mcp` で JSON-RPC（`initialize`・`tools/list` 等）を送り、Worker が JSON または SSE 形式で応答します。`initialize` 応答には `Mcp-Session-Id` ヘッダーが付きます。
 
 設定例: [`opencode.json.example`](../opencode.json.example) / [`.opencode/opencode.json.example`](../.opencode/opencode.json.example)
 
@@ -137,10 +132,8 @@ mkdir -p .opencode && cp .opencode/opencode.json.example .opencode/opencode.json
 | URL | 理由 |
 |-----|------|
 | `https://...workers.dev`（パスのみ `/`） | MCP エンドポイントではない |
-| `https://...workers.dev/mcp` | OpenCode は Streamable HTTP 未対応 |
+| `https://...workers.dev/sse` | 旧 SSE トランスポート（未提供） |
 | `https://...workers.dev/tools` | REST API（MCP ではない） |
-
-> **注意:** SSE セッションは Worker インスタンス内のインメモリ Map で管理します。Cloudflare Workers の接続時間制限の影響を受けることがあります。
 
 ---
 
@@ -258,7 +251,6 @@ geospatial ポータルで PLATEAU を検索し、先頭のデータセットの
 | 項目 | 内容 |
 |------|------|
 | レート制限 | 同一 IP で 60 リクエスト / 60 秒（`POST /tools/call`・`POST /mcp`。超過時 HTTP 429） |
-| SSE セッション | インメモリ Map（同一 Worker インスタンス内のみ。長時間接続に制限あり） |
 | 認証 | ツール API は公開（トークン不要）。`/admin` のみ `ADMIN_TOKEN` |
 | キャッシュ | 同一条件の検索は KV にキャッシュ（最大 1 時間程度） |
 | G空間 | `search_records`（DataStore）は利用不可のことが多い |
@@ -270,8 +262,8 @@ geospatial ポータルで PLATEAU を検索し、先頭のデータセットの
 | 症状 | 対処 |
 |------|------|
 | Cursor にツールが出ない | `mcp.json` のパス・JSON を確認。Reload Window |
-| OpenCode に MCP が出ない | `opencode.json` の場所・URL が **`/sse` で終わっているか**。再起動 |
-| OpenCode で接続できない | `/mcp` ではなく **`/sse`** か確認。本番は Worker デプロイ済みか |
+| OpenCode に MCP が出ない | `opencode.json` の場所・URL が **`/mcp` で終わっているか**。再起動 |
+| OpenCode で接続できない | **`/mcp`** か確認。本番は Worker デプロイ済みか |
 | `ECONNREFUSED`（Cursor ブリッジ） | `CKAN_MCP_BASE_URL`・`npm run dev` / 本番 URL を確認 |
 | ブリッジ起動でモジュールエラー（Cursor） | リポジトリで `npm install` |
 | 429 | しばらく待つか、リクエスト頻度を下げる |

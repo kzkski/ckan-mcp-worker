@@ -3,7 +3,7 @@
   "mcp": {
     "ckan-open-data": {
       "type": "remote",
-      "url": "https://ckan-mcp-worker.YOUR_SUBDOMAIN.workers.dev/sse",
+      "url": "https://ckan-mcp-worker.YOUR_SUBDOMAIN.workers.dev/mcp",
       "enabled": true,
       "timeout": 120000
     }
