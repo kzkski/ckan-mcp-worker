@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run test",
     "setup:prod": "bash scripts/setup-prod.sh",
-    "deploy:prod": "wrangler d1 migrations apply ckan-mcp-logs --remote && wrangler deploy"
+    "deploy:prod": "wrangler d1 migrations apply ckan-mcp-logs --remote && wrangler deploy",
+    "mcp:bridge": "node scripts/mcp-stdio-bridge.mjs"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.12.4",
@@ -23,6 +24,7 @@
     "wrangler": "^4.94.0"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "hono": "^4.12.23"
   }
 }

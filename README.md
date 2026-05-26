@@ -135,6 +135,14 @@ npm run deploy:prod
 
 デプロイ後は `https://ckan-mcp-worker.<your-subdomain>.workers.dev` でアクセスできます。
 
+## MCP クライアント接続
+
+Cursor / OpenCode / Claude Desktop から使う手順と登録例は **[docs/MCP_CLIENT_SETUP.md](./docs/MCP_CLIENT_SETUP.md)** を参照してください。
+
+- 標準 MCP クライアント → `scripts/mcp-stdio-bridge.mjs`（stdio ブリッジ）
+- Cursor → [`.cursor/mcp.json.example`](./.cursor/mcp.json.example)
+- OpenCode → [`opencode.json.example`](./opencode.json.example) / [`.opencode/opencode.json.example`](./.opencode/opencode.json.example)
+
 ## MCP ツール
 
 | ツール名 | 説明 |

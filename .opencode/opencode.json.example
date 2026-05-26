@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "ckan-open-data": {
+      "type": "local",
+      "command": ["node", "scripts/mcp-stdio-bridge.mjs"],
+      "enabled": true,
+      "timeout": 120000,
+      "environment": {
+        "CKAN_MCP_BASE_URL": "https://ckan-mcp-worker.YOUR_SUBDOMAIN.workers.dev"
+      }
+    }
+  }
+}
