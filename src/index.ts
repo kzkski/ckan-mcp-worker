@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { admin } from "./admin";
 import type { Env } from "./env";
-import { deleteOldLogs, insertRequestLog } from "./logger";
+import { deleteOldLogs, scheduleRequestLog } from "./logger";
 import { PORTALS } from "./portals";
 import { handleMcpPost } from "./mcp-transport";
 import { handleToolCall } from "./tools-handler";
@@ -36,29 +36,21 @@ app.route("/admin", admin);
 app.post("/tools/call", async (c) => {
   const started = Date.now();
   const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
-  const country = c.req.header("CF-IPCountry") ?? null;
-  const userAgent = c.req.header("User-Agent") ?? null;
 
   const { success: withinLimit } = await c.env.RATE_LIMITER.limit({ key: ip });
 
   if (!withinLimit) {
-    const durationMs = Date.now() - started;
-    c.executionCtx.waitUntil(
-      insertRequestLog(c.env.LOG_DB, c.env, {
-        ip,
-        country,
-        userAgent,
-        tool: "rate_limited",
-        portal: null,
-        keyword: null,
-        argsJson: "{}",
-        status: 429,
-        isError: true,
-        durationMs,
-        cacheHit: false,
-        rateLimited: true,
-      })
-    );
+    scheduleRequestLog(c, {
+      tool: "rate_limited",
+      portal: null,
+      keyword: null,
+      argsJson: "{}",
+      status: 429,
+      isError: true,
+      durationMs: Date.now() - started,
+      cacheHit: false,
+      rateLimited: true,
+    });
     return c.json({ error: "Rate limit exceeded" }, 429);
   }
 
@@ -66,23 +58,17 @@ app.post("/tools/call", async (c) => {
   try {
     body = await c.req.json();
   } catch {
-    const durationMs = Date.now() - started;
-    c.executionCtx.waitUntil(
-      insertRequestLog(c.env.LOG_DB, c.env, {
-        ip,
-        country,
-        userAgent,
-        tool: "invalid_body",
-        portal: null,
-        keyword: null,
-        argsJson: "{}",
-        status: 400,
-        isError: true,
-        durationMs,
-        cacheHit: false,
-        rateLimited: false,
-      })
-    );
+    scheduleRequestLog(c, {
+      tool: "invalid_body",
+      portal: null,
+      keyword: null,
+      argsJson: "{}",
+      status: 400,
+      isError: true,
+      durationMs: Date.now() - started,
+      cacheHit: false,
+      rateLimited: false,
+    });
     return c.json(
       {
         content: [{ type: "text", text: "Invalid JSON body" }],
@@ -93,24 +79,17 @@ app.post("/tools/call", async (c) => {
   }
 
   const outcome = await handleToolCall(c, body);
-  const durationMs = Date.now() - started;
-
-  c.executionCtx.waitUntil(
-    insertRequestLog(c.env.LOG_DB, c.env, {
-      ip,
-      country,
-      userAgent,
-      tool: outcome.tool,
-      portal: outcome.portal,
-      keyword: outcome.keyword,
-      argsJson: outcome.argsJson,
-      status: outcome.status,
-      isError: outcome.isError,
-      durationMs,
-      cacheHit: outcome.cacheHit,
-      rateLimited: false,
-    })
-  );
+  scheduleRequestLog(c, {
+    tool: outcome.tool,
+    portal: outcome.portal,
+    keyword: outcome.keyword,
+    argsJson: outcome.argsJson,
+    status: outcome.status,
+    isError: outcome.isError,
+    durationMs: Date.now() - started,
+    cacheHit: outcome.cacheHit,
+    rateLimited: false,
+  });
 
   return outcome.response;
 });
