@@ -2,22 +2,16 @@
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
     "ckan-open-data-local": {
-      "type": "local",
-      "command": ["node", "scripts/mcp-stdio-bridge.mjs"],
+      "type": "remote",
+      "url": "http://localhost:8787/sse",
       "enabled": true,
-      "timeout": 60000,
-      "environment": {
-        "CKAN_MCP_BASE_URL": "http://localhost:8787"
-      }
+      "timeout": 60000
     },
     "ckan-open-data-production": {
-      "type": "local",
-      "command": ["node", "scripts/mcp-stdio-bridge.mjs"],
+      "type": "remote",
+      "url": "https://ckan-mcp-worker.YOUR_SUBDOMAIN.workers.dev/sse",
       "enabled": false,
-      "timeout": 120000,
-      "environment": {
-        "CKAN_MCP_BASE_URL": "https://ckan-mcp-worker.YOUR_SUBDOMAIN.workers.dev"
-      }
+      "timeout": 120000
     }
   }
 }

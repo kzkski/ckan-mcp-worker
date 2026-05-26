@@ -1,13 +1,13 @@
 # MCP クライアント接続ガイド
 
-この Worker は **HTTP API**（`GET /tools`・`POST /tools/call`）を提供します。  
-Cursor / OpenCode / Claude Desktop などの **標準 MCP（stdio）** から使うには、同梱の **stdio ブリッジ** を経由します。
+この Worker は MCP トランスポート（**`/sse`**・`/mcp`）と REST API（`GET /tools`・`POST /tools/call`）を提供します。
 
 | 接続方式 | 向いている用途 |
 |----------|----------------|
-| **stdio ブリッジ**（推奨） | Cursor、OpenCode、Claude Desktop |
+| **`type: "remote"` + `/sse`**（推奨） | **OpenCode**（リモート MCP は SSE のみ対応） |
+| **stdio ブリッジ** | Cursor、Claude Desktop |
+| **`POST /mcp`**（Streamable HTTP） | OpenCode 非対応。将来のクライアント向け |
 | **HTTP を直接呼ぶ** | curl、自作アプリ、n8n 等 |
-| **`type: "remote"` + Worker URL** | 非対応（MCP Streamable HTTP ではない） |
 
 `ADMIN_TOKEN` は **管理画面（`/admin`）専用**です。MCP ツールの利用には不要です。
 
@@ -69,78 +69,58 @@ Cursor / OpenCode / Claude Desktop などの **標準 MCP（stdio）** から使
 
 ---
 
-## 2. OpenCode
+## 2. OpenCode（推奨: リモート SSE）
 
-OpenCode は `opencode.json` の `mcp` オブジェクトで MCP を定義します。  
-本サーバーは **stdio ブリッジ**（`type: "local"`）で接続してください。
+OpenCode は `opencode.json` の `mcp` で **`type: "remote"`** を指定します。
 
-### 2-1. プロジェクトで使う（推奨）
+> **重要:** OpenCode のリモート MCP は **SSE トランスポート（`/sse`）のみ**対応です。`POST /mcp` の Streamable HTTP は **使えません**。URL は必ず **`/sse` で終えて**ください。
 
-リポジトリをクローンしたディレクトリで:
+### 2-1. 設定例
 
 ```bash
-cd /path/to/ckan-mcp-worker
-npm install
-
-# どちらか一方をコピー（中身は同等の例）
+# どちらか一方をコピー
 cp opencode.json.example opencode.json
 # または
 mkdir -p .opencode && cp .opencode/opencode.json.example .opencode/opencode.json
 ```
 
-`CKAN_MCP_BASE_URL` と、使うサーバー定義の `enabled` を編集します（本番だけ使うなら `ckan-open-data-production` を `enabled: true` に）。
-
-**本番の例**（`opencode.json`）:
+**本番**（`YOUR_SUBDOMAIN` を置き換え）:
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
     "ckan-open-data": {
-      "type": "local",
-      "command": ["node", "scripts/mcp-stdio-bridge.mjs"],
+      "type": "remote",
+      "url": "https://ckan-mcp-worker.YOUR_SUBDOMAIN.workers.dev/sse",
       "enabled": true,
-      "timeout": 120000,
-      "environment": {
-        "CKAN_MCP_BASE_URL": "https://ckan-mcp-worker.YOUR_SUBDOMAIN.workers.dev"
-      }
+      "timeout": 120000
     }
   }
 }
 ```
 
-**ローカル**（`wrangler dev` 起動中）:
+**ローカル**（`npm run dev` 起動中）:
 
 ```json
-"environment": {
-  "CKAN_MCP_BASE_URL": "http://localhost:8787"
-}
+"url": "http://localhost:8787/sse"
 ```
 
-- `command` は **プロジェクトルートからの相対パス**で動作します（OpenCode をリポジトリ直下で開く想定）。
-- 設定例ファイル: [`opencode.json.example`](../opencode.json.example) / [`.opencode/opencode.json.example`](../.opencode/opencode.json.example)
+接続の流れ:
 
-### 2-2. 全プロジェクトで使う（グローバル）
+1. OpenCode が `GET /sse` で SSE を開く
+2. Worker が `event: endpoint` / `data: /message` を送信し、セッション Cookie を設定
+3. OpenCode が `POST /message` で JSON-RPC を送り、応答を SSE で受信
 
-`~/.config/opencode/opencode.json` に同じ `mcp` ブロックを書きます。  
-`command` にはブリッジの **絶対パス**を指定してください。
+設定例: [`opencode.json.example`](../opencode.json.example) / [`.opencode/opencode.json.example`](../.opencode/opencode.json.example)
 
-```json
-"command": ["/absolute/path/to/ckan-mcp-worker/scripts/mcp-stdio-bridge.mjs"]
-```
+### 2-2. グローバル設定
 
-### 2-3. CLI で追加（対話式）
+`~/.config/opencode/opencode.json` に同じ `mcp` ブロックを書けます。
 
-```bash
-opencode mcp add
-```
+### 2-3. 確認
 
-プロンプトに従い、`type: local`・`command`・環境変数 `CKAN_MCP_BASE_URL` を設定します。  
-反映後は **OpenCode を再起動**してください。
-
-### 2-4. 確認
-
-1. プロジェクトルートで `opencode` を起動
+1. プロジェクトルートで `opencode` を起動（本番 URL の場合は Worker がデプロイ済みであること）
 2. `/status` または MCP 一覧で `ckan-open-data` が表示されるか確認
 3. 例: 「仙台市のオープンデータで『人口』を search_datasets して」
 
@@ -152,20 +132,15 @@ opencode mcp add
 | `opencode.json`（リポジトリルート） | このプロジェクト |
 | `.opencode/opencode.json` | このプロジェクト（推奨ディレクトリ） |
 
-### OpenCode で使わない設定
+### OpenCode で使えない URL
 
-```json
-{
-  "mcp": {
-    "ckan-open-data": {
-      "type": "remote",
-      "url": "https://ckan-mcp-worker.example.workers.dev"
-    }
-  }
-}
-```
+| URL | 理由 |
+|-----|------|
+| `https://...workers.dev`（パスのみ `/`） | MCP エンドポイントではない |
+| `https://...workers.dev/mcp` | OpenCode は Streamable HTTP 未対応 |
+| `https://...workers.dev/tools` | REST API（MCP ではない） |
 
-上記は **動作しません**（当 Worker は MCP over HTTP ではなく REST API のため）。必ず `type: "local"` + ブリッジを使ってください。
+> **注意:** SSE セッションは Worker インスタンス内のインメモリ Map で管理します。Cloudflare Workers の接続時間制限の影響を受けることがあります。
 
 ---
 
@@ -282,7 +257,8 @@ geospatial ポータルで PLATEAU を検索し、先頭のデータセットの
 
 | 項目 | 内容 |
 |------|------|
-| レート制限 | 同一 IP で 60 リクエスト / 60 秒（超過時 HTTP 429） |
+| レート制限 | 同一 IP で 60 リクエスト / 60 秒（`POST /tools/call`・`POST /mcp`。超過時 HTTP 429） |
+| SSE セッション | インメモリ Map（同一 Worker インスタンス内のみ。長時間接続に制限あり） |
 | 認証 | ツール API は公開（トークン不要）。`/admin` のみ `ADMIN_TOKEN` |
 | キャッシュ | 同一条件の検索は KV にキャッシュ（最大 1 時間程度） |
 | G空間 | `search_records`（DataStore）は利用不可のことが多い |
@@ -294,9 +270,10 @@ geospatial ポータルで PLATEAU を検索し、先頭のデータセットの
 | 症状 | 対処 |
 |------|------|
 | Cursor にツールが出ない | `mcp.json` のパス・JSON を確認。Reload Window |
-| OpenCode に MCP が出ない | `opencode.json` の場所（ルート or `.opencode/`）。再起動。`npm install` 済みか |
-| `ECONNREFUSED` | `CKAN_MCP_BASE_URL` が正しいか、`npm run dev` / 本番 URL を確認 |
-| ブリッジ起動でモジュールエラー | リポジトリで `npm install` |
+| OpenCode に MCP が出ない | `opencode.json` の場所・URL が **`/sse` で終わっているか**。再起動 |
+| OpenCode で接続できない | `/mcp` ではなく **`/sse`** か確認。本番は Worker デプロイ済みか |
+| `ECONNREFUSED`（Cursor ブリッジ） | `CKAN_MCP_BASE_URL`・`npm run dev` / 本番 URL を確認 |
+| ブリッジ起動でモジュールエラー（Cursor） | リポジトリで `npm install` |
 | 429 | しばらく待つか、リクエスト頻度を下げる |
 
 関連: [README.md](../README.md) · [DEPLOYMENT.md](./DEPLOYMENT.md)
