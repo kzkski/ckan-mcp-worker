@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import type { Env } from "./env";
+import { scheduleRequestLog } from "./logger";
 import { handleToolCall } from "./tools-handler";
 import { TOOLS } from "./tools";
 
@@ -93,6 +94,7 @@ export async function handleJsonRpc(
     }
 
     case "tools/call": {
+      const started = Date.now();
       const name =
         typeof params?.name === "string" ? params.name : undefined;
       const args =
@@ -103,6 +105,17 @@ export async function handleJsonRpc(
           : {};
 
       const outcome = await handleToolCall(c, { name, arguments: args });
+      scheduleRequestLog(c, {
+        tool: outcome.tool,
+        portal: outcome.portal,
+        keyword: outcome.keyword,
+        argsJson: outcome.argsJson,
+        status: outcome.status,
+        isError: outcome.isError,
+        durationMs: Date.now() - started,
+        cacheHit: outcome.cacheHit,
+        rateLimited: false,
+      });
       const result = await outcome.response.json();
       return successResponse(id, result);
     }

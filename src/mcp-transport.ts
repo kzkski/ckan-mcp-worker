@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import type { Env } from "./env";
+import { scheduleRequestLog } from "./logger";
 import {
   handleJsonRpc,
   handleJsonRpcBatch,
@@ -36,14 +37,37 @@ async function parseJsonRpcBody(
 export async function handleMcpPost(
   c: Context<{ Bindings: Env }>
 ): Promise<Response> {
+  const started = Date.now();
   const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
   const { success: withinLimit } = await c.env.RATE_LIMITER.limit({ key: ip });
   if (!withinLimit) {
+    scheduleRequestLog(c, {
+      tool: "rate_limited",
+      portal: null,
+      keyword: null,
+      argsJson: "{}",
+      status: 429,
+      isError: true,
+      durationMs: Date.now() - started,
+      cacheHit: false,
+      rateLimited: true,
+    });
     return c.json({ error: "Rate limit exceeded" }, 429);
   }
 
   const parsed = await parseJsonRpcBody(c);
   if (parsed instanceof Response) {
+    scheduleRequestLog(c, {
+      tool: "invalid_body",
+      portal: null,
+      keyword: null,
+      argsJson: "{}",
+      status: 400,
+      isError: true,
+      durationMs: Date.now() - started,
+      cacheHit: false,
+      rateLimited: false,
+    });
     return parsed;
   }
 

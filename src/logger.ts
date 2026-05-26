@@ -1,4 +1,10 @@
+import type { Context } from "hono";
 import type { Env } from "./env";
+
+export type RequestLogFields = Omit<
+  RequestLogInput,
+  "ip" | "country" | "userAgent"
+>;
 
 export type RequestLogInput = {
   ip: string;
@@ -50,6 +56,20 @@ export function summarizeArgs(
     typeof args.keyword === "string" ? args.keyword.slice(0, 100) : null;
 
   return { json: JSON.stringify(summary), keyword };
+}
+
+export function scheduleRequestLog(
+  c: Context<{ Bindings: Env }>,
+  input: RequestLogFields
+): void {
+  c.executionCtx.waitUntil(
+    insertRequestLog(c.env.LOG_DB, c.env, {
+      ip: c.req.header("CF-Connecting-IP") ?? "unknown",
+      country: c.req.header("CF-IPCountry") ?? null,
+      userAgent: c.req.header("User-Agent") ?? null,
+      ...input,
+    })
+  );
 }
 
 export async function insertRequestLog(
