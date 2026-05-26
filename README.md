@@ -10,6 +10,14 @@
 | `geospatial` | [G空間情報センター](https://www.geospatial.jp/ckan) |
 | `bodik` | [BODIK（全国自治体オープンデータ）](https://data.bodik.jp) |
 
+## 開発の進め方
+
+このリポジトリは **GitHub Flow** で運用します。`main` への直接 push は行わず、feature ブランチから Pull Request でマージしてください。詳細は [CONTRIBUTING.md](./CONTRIBUTING.md) を参照してください。
+
+```bash
+npm run check   # 型チェック + テスト（PR 前に実行）
+```
+
 ## セットアップ
 
 ```bash
@@ -127,6 +135,21 @@ npm run deploy
 | `get_dataset` | データセット詳細・リソース一覧 |
 | `search_records` | DataStore レコード検索（未対応時は `{ "available": false }`）。G空間情報センターは `datastore_search` 非対応 |
 | `list_organizations` | 組織一覧 |
+
+## ADMIN_TOKEN とは
+
+**管理ダッシュボード（`/admin`）と統計 API を守るための共有パスワード**です。
+
+| 項目 | 説明 |
+|------|------|
+| 用途 | `/admin/api/stats`・`/admin/api/logs` へのアクセス認証（`Authorization: Bearer <トークン>`） |
+| ローカル | `wrangler.jsonc` の `vars.ADMIN_TOKEN`（開発用の仮値） |
+| 本番 | **必ず** `wrangler secret put ADMIN_TOKEN` で独自の長いランダム文字列を設定する |
+| MCP 利用者 | **不要**（`/tools/call` には使わない） |
+
+ブラウザで `/admin` を開くとトークン入力欄が表示され、入力値は `sessionStorage` にだけ保存されます（サーバーへは API 呼び出し時の Bearer ヘッダーのみ送信）。
+
+IP ハッシュ用の `LOG_HASH_SALT` が未設定の場合、ログ記録では `ADMIN_TOKEN` をソルトの代替として使います。本番では `LOG_HASH_SALT` も別途設定することを推奨します。
 
 ## リクエストログ・ダッシュボード
 

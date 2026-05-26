@@ -1,0 +1,38 @@
+---
+description: GitHub Flow（main 保護・PR 必須）のブランチ運用
+alwaysApply: true
+---
+
+# GitHub Flow
+
+このリポジトリは **GitHub Flow** で運用する。詳細は `CONTRIBUTING.md` を参照。
+
+## ブランチ
+
+- デフォルトブランチは `main`。常にデプロイ可能な状態を保つ。
+- 作業は `main` から分岐した **短命の feature ブランチ** で行う。
+- ブランチ名: `feature/<概要>` / `fix/<概要>` / `docs/<概要>`（英小文字・ハイフン区切り）
+
+## 禁止事項
+
+- **`main` への直接 push しない**（緊急時も原則 PR 経由）
+- PR なしの force push を `main` に行わない
+- 無関係な変更を同一 PR に混ぜない
+
+## マージ手順
+
+1. 最新の `main` を取り込む（`git fetch origin` → `git rebase origin/main` または merge）
+2. `npm run check` が通ることを確認
+3. PR を作成し、説明・テスト手順を記載
+4. CI が green になってからマージ（**Squash merge** 推奨）
+5. マージ後、リモートの feature ブランチを削除
+
+## コミット
+
+- コミットメッセージは変更の **目的（why）** を簡潔に書く
+- ユーザーが明示的に依頼しない限り、勝手に `main` へ commit / push しない
+
+## デプロイ
+
+- 本番反映は `main` マージ後に `wrangler deploy`（または CI デプロイ）で行う
+- シークレット（`ADMIN_TOKEN` 等）はリポジトリにコミットしない
