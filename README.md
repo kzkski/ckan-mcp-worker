@@ -49,11 +49,7 @@ npm run db:migrate:local
 npm run db:migrate:remote
 ```
 
-本番の `ADMIN_TOKEN` は `wrangler.jsonc` の `vars` ではなくシークレットで設定してください。
-
-```bash
-npx wrangler secret put ADMIN_TOKEN
-```
+本番の `ADMIN_TOKEN` は `npm run setup:prod` が自動登録するか、手動で `npx wrangler secret put ADMIN_TOKEN` を実行してください。ローカルは `.dev.vars` を使用します。
 
 ## ローカル開発
 
@@ -117,13 +113,25 @@ curl http://localhost:8787/tools/call \
 
 ## デプロイ
 
-```bash
-# Cloudflare にログイン（初回のみ）
-npx wrangler login
+詳細は [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) を参照してください。
 
-# KV 名前空間を wrangler.jsonc に設定したうえでデプロイ
-npm run deploy
+### 初回（自動セットアップ）
+
+```bash
+npx wrangler login
+cp .dev.vars.example .dev.vars   # ローカル開発用
+
+# KV / D1 作成・シークレット登録・マイグレーション・デプロイまで一括
+npm run setup:prod -- --deploy
 ```
+
+### 2 回目以降
+
+```bash
+npm run deploy:prod
+```
+
+`main` への push で [GitHub Actions](./.github/workflows/deploy.yml) からも自動デプロイできます（要 `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`）。
 
 デプロイ後は `https://ckan-mcp-worker.<your-subdomain>.workers.dev` でアクセスできます。
 
@@ -143,7 +151,7 @@ npm run deploy
 | 項目 | 説明 |
 |------|------|
 | 用途 | `/admin/api/stats`・`/admin/api/logs` へのアクセス認証（`Authorization: Bearer <トークン>`） |
-| ローカル | `wrangler.jsonc` の `vars.ADMIN_TOKEN`（開発用の仮値） |
+| ローカル | `.dev.vars` の `ADMIN_TOKEN`（`.dev.vars.example` をコピー） |
 | 本番 | **必ず** `wrangler secret put ADMIN_TOKEN` で独自の長いランダム文字列を設定する |
 | MCP 利用者 | **不要**（`/tools/call` には使わない） |
 
@@ -161,7 +169,7 @@ IP ハッシュ用の `LOG_HASH_SALT` が未設定の場合、ログ記録では
 
 ### ダッシュボード
 
-ブラウザで `http://localhost:8787/admin` を開き、ローカル開発時の `ADMIN_TOKEN`（`wrangler.jsonc` の `vars`、既定: `dev-admin-token-change-me`）でログインします。
+ブラウザで `http://localhost:8787/admin` を開き、`.dev.vars` の `ADMIN_TOKEN` でログインします。
 
 API から直接取得する場合:
 

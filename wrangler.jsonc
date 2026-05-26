@@ -3,9 +3,6 @@
 	"name": "ckan-mcp-worker",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-01-01",
-	"vars": {
-		"ADMIN_TOKEN": "dev-admin-token-change-me"
-	},
 	"kv_namespaces": [
 		{
 			"binding": "CACHE_KV",

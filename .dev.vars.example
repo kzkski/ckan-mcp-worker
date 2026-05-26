@@ -1,3 +1,7 @@
-# ローカル開発用（.dev.vars にコピーして使用）
-ADMIN_TOKEN=your-secret-admin-token
+# ローカル開発用: このファイルを .dev.vars にコピーして編集
+# cp .dev.vars.example .dev.vars
+#
+# 本番の ADMIN_TOKEN は wrangler secret put ADMIN_TOKEN で設定（setup-prod が自動実行可）
+
+ADMIN_TOKEN=dev-admin-token-change-me
 LOG_HASH_SALT=optional-salt-for-ip-hashing

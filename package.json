@@ -11,7 +11,9 @@
     "db:migrate:local": "wrangler d1 migrations apply ckan-mcp-logs --local",
     "db:migrate:remote": "wrangler d1 migrations apply ckan-mcp-logs --remote",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm run test"
+    "check": "npm run typecheck && npm run test",
+    "setup:prod": "bash scripts/setup-prod.sh",
+    "deploy:prod": "wrangler d1 migrations apply ckan-mcp-logs --remote && wrangler deploy"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.12.4",
