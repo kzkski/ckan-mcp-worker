@@ -21,24 +21,41 @@ const PORTALS = {
   sendai: {
     name: "仙台市オープンデータ",
     url: "https://data.city.sendai.jp",
+    apiStyle: "ckan",
     keyword: "公共施設",
     minCount: 1,
     expectDatastoreRecords: true,
+    expectOrganizations: true,
   },
   geospatial: {
     name: "G空間情報センター",
     url: "https://www.geospatial.jp/ckan",
+    apiStyle: "ckan",
     keyword: "PLATEAU",
     minCount: 1,
     /** This portal does not expose datastore_search. */
     expectDatastoreRecords: false,
+    expectOrganizations: true,
   },
   bodik: {
     name: "BODIK（全国自治体オープンデータ）",
     url: "https://data.bodik.jp",
+    apiStyle: "ckan",
     keyword: "施設",
     minCount: 1,
     expectDatastoreRecords: true,
+    expectOrganizations: true,
+  },
+  shizuoka: {
+    name: "静岡県オープンデータ",
+    url: "https://opendata.pref.shizuoka.jp",
+    /** Custom "Shirasagi" CMS API: `api/{action}`, not standard CKAN `api/3/action/{action}`. */
+    apiStyle: "shirasagi",
+    keyword: "人口",
+    minCount: 1,
+    /** Shirasagi does not expose datastore_search / organization_list. */
+    expectDatastoreRecords: false,
+    expectOrganizations: false,
   },
 };
 
@@ -58,9 +75,13 @@ function parseArgs(argv) {
   return { worker, baseUrl: baseUrl.replace(/\/$/, "") };
 }
 
-async function ckanAction(baseUrl, action, params) {
+function actionPath(apiStyle, action) {
+  return apiStyle === "shirasagi" ? `api/${action}` : `api/3/action/${action}`;
+}
+
+async function ckanAction(baseUrl, apiStyle, action, params) {
   const base = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
-  const url = new URL(`api/3/action/${action}`, base);
+  const url = new URL(actionPath(apiStyle, action), base);
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== "") {
       url.searchParams.set(key, String(value));
@@ -135,10 +156,21 @@ function firstDatastoreResource(dataset) {
   return resources.find((r) => r.datastore_active) ?? null;
 }
 
+/**
+ * Standard CKAN uses the `name` slug as the stable dataset identifier.
+ * Shirasagi's `name` is just the human title, so `uuid` (or numeric `id`)
+ * must be used instead when calling package_show.
+ */
+function resolveDatasetId(portal, hit) {
+  return portal.apiStyle === "shirasagi"
+    ? (hit.uuid ?? hit.id)
+    : (hit.name ?? hit.id);
+}
+
 /** Find first datastore_active resource by checking search hits (up to max). */
-async function findDatastoreViaSearch(fetchDataset, results, max = 5) {
+async function findDatastoreViaSearch(portal, fetchDataset, results, max = 5) {
   for (const hit of results.slice(0, max)) {
-    const id = hit.name ?? hit.id;
+    const id = resolveDatasetId(portal, hit);
     const fromHit = firstDatastoreResource(hit);
     if (fromHit) return { datasetId: id, resource: fromHit };
 
@@ -165,13 +197,16 @@ function isDatastoreUnavailableError(message) {
     lower.includes("not found") ||
     lower.includes("no such resource") ||
     lower.includes("action name not known") ||
-    lower.includes("bad request")
+    lower.includes("bad request") ||
+    // Some responses (e.g. HTTP/2 with no reason phrase) carry an empty
+    // statusText, leaving just the status code as a signal.
+    lower.includes("404")
   );
 }
 
-async function searchRecordsCkan(baseUrl, resourceId) {
+async function searchRecordsCkan(baseUrl, apiStyle, resourceId) {
   const base = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
-  const url = new URL("api/3/action/datastore_search", base);
+  const url = new URL(actionPath(apiStyle, "datastore_search"), base);
   url.searchParams.set("resource_id", resourceId);
   url.searchParams.set("limit", String(RECORD_LIMIT));
 
@@ -268,7 +303,7 @@ async function runPortalScenarioCkan(key, portal) {
   const lines = [];
   let failed = false;
 
-  const search = await ckanAction(portal.url, "package_search", {
+  const search = await ckanAction(portal.url, portal.apiStyle, "package_search", {
     q: portal.keyword,
     rows: SEARCH_LIMIT,
   });
@@ -290,27 +325,35 @@ async function runPortalScenarioCkan(key, portal) {
     `  ✓ search_datasets  keyword="${portal.keyword}" count=${count} top: ${formatTitles(results)} (${search.ms}ms)`
   );
 
-  const datasetId = results[0].name ?? results[0].id;
+  const datasetId = resolveDatasetId(portal, results[0]);
 
-  const detail = await ckanAction(portal.url, "package_show", { id: datasetId });
+  const detail = await ckanAction(portal.url, portal.apiStyle, "package_show", {
+    id: datasetId,
+  });
   if (!detail.ok) {
     failed = true;
     lines.push(`  ✗ get_dataset(${datasetId})  ${detail.error} (${detail.ms}ms)`);
   } else {
-    const title = detail.result?.title ?? datasetId;
+    const title = detail.result?.title ?? detail.result?.name ?? datasetId;
     const nRes = detail.result?.resources?.length ?? 0;
     lines.push(
       `  ✓ get_dataset  id=${datasetId} title="${title}" resources=${nRes} (${detail.ms}ms)`
     );
   }
 
-  const orgs = await ckanAction(portal.url, "organization_list", {
+  const orgs = await ckanAction(portal.url, portal.apiStyle, "organization_list", {
     limit: ORG_LIMIT,
     all_fields: "true",
   });
   if (!orgs.ok) {
-    failed = true;
-    lines.push(`  ✗ list_organizations  ${orgs.error} (${orgs.ms}ms)`);
+    if (!portal.expectOrganizations && isDatastoreUnavailableError(orgs.error ?? "")) {
+      lines.push(
+        `  ✓ list_organizations  not available on portal (expected) (${orgs.ms}ms)`
+      );
+    } else {
+      failed = true;
+      lines.push(`  ✗ list_organizations  ${orgs.error} (${orgs.ms}ms)`);
+    }
   } else {
     const names = (orgs.result ?? [])
       .slice(0, 3)
@@ -322,10 +365,10 @@ async function runPortalScenarioCkan(key, portal) {
   }
 
   const fetchDataset = async (id) => {
-    const r = await ckanAction(portal.url, "package_show", { id });
+    const r = await ckanAction(portal.url, portal.apiStyle, "package_show", { id });
     return r.ok ? { ok: true, data: r.result } : { ok: false };
   };
-  const datastore = await findDatastoreViaSearch(fetchDataset, results);
+  const datastore = await findDatastoreViaSearch(portal, fetchDataset, results);
   if (!datastore) {
     if (portal.expectDatastoreRecords) {
       failed = true;
@@ -344,7 +387,7 @@ async function runPortalScenarioCkan(key, portal) {
     );
   }
 
-  const records = await searchRecordsCkan(portal.url, datastore.resource.id);
+  const records = await searchRecordsCkan(portal.url, portal.apiStyle, datastore.resource.id);
   if (assertSearchRecords(lines, portal, datastore.resource.id, records)) {
     failed = true;
   }
@@ -379,7 +422,7 @@ async function runPortalScenarioWorker(baseUrl, key, portal) {
     `  ✓ search_datasets  keyword="${portal.keyword}" count=${count} top: ${formatTitles(results)} (${search.ms}ms)`
   );
 
-  const datasetId = results[0].name ?? results[0].id;
+  const datasetId = resolveDatasetId(portal, results[0]);
 
   const detail = await callWorkerTool(baseUrl, "get_dataset", {
     portal: key,
@@ -389,7 +432,7 @@ async function runPortalScenarioWorker(baseUrl, key, portal) {
     failed = true;
     lines.push(`  ✗ get_dataset(${datasetId})  ${detail.error} (${detail.ms}ms)`);
   } else {
-    const title = detail.data?.title ?? datasetId;
+    const title = detail.data?.title ?? detail.data?.name ?? datasetId;
     const nRes = detail.data?.resources?.length ?? 0;
     lines.push(
       `  ✓ get_dataset  id=${datasetId} title="${title}" resources=${nRes} (${detail.ms}ms)`
@@ -401,8 +444,14 @@ async function runPortalScenarioWorker(baseUrl, key, portal) {
     limit: ORG_LIMIT,
   });
   if (!orgs.ok) {
-    failed = true;
-    lines.push(`  ✗ list_organizations  ${orgs.error} (${orgs.ms}ms)`);
+    if (!portal.expectOrganizations && isDatastoreUnavailableError(orgs.error ?? "")) {
+      lines.push(
+        `  ✓ list_organizations  not available on portal (expected) (${orgs.ms}ms)`
+      );
+    } else {
+      failed = true;
+      lines.push(`  ✗ list_organizations  ${orgs.error} (${orgs.ms}ms)`);
+    }
   } else {
     const list = Array.isArray(orgs.data) ? orgs.data : [];
     const names = list
@@ -418,7 +467,7 @@ async function runPortalScenarioWorker(baseUrl, key, portal) {
     const r = await callWorkerTool(baseUrl, "get_dataset", { portal: key, id });
     return r.ok ? { ok: true, data: r.data } : { ok: false };
   };
-  const datastore = await findDatastoreViaSearch(fetchDataset, results);
+  const datastore = await findDatastoreViaSearch(portal, fetchDataset, results);
   if (!datastore) {
     if (portal.expectDatastoreRecords) {
       failed = true;

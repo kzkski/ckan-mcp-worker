@@ -1,3 +1,5 @@
+import type { ApiStyle } from "./portals";
+
 type CkanResponse<T> = {
   success: boolean;
   result?: T;
@@ -15,13 +17,18 @@ function isCkanError<T>(value: T | CkanError): value is CkanError {
   );
 }
 
+function actionPath(apiStyle: ApiStyle, action: string): string {
+  return apiStyle === "shirasagi" ? `api/${action}` : `api/3/action/${action}`;
+}
+
 async function ckanGet<T>(
   baseUrl: string,
+  apiStyle: ApiStyle,
   action: string,
   params: Record<string, string | number | undefined>
 ): Promise<T | CkanError> {
   const base = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
-  const url = new URL(`api/3/action/${action}`, base);
+  const url = new URL(actionPath(apiStyle, action), base);
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== "") {
       url.searchParams.set(key, String(value));
@@ -72,29 +79,37 @@ function isDatastoreUnavailable(message: string): boolean {
     lower.includes("datastore") ||
     lower.includes("data store") ||
     lower.includes("not found") ||
-    lower.includes("no such resource")
+    lower.includes("no such resource") ||
+    // Some responses carry an empty statusText, leaving just the status code.
+    lower.includes("404")
   );
 }
 
 export async function searchDatasets(
   baseUrl: string,
+  apiStyle: ApiStyle,
   keyword: string,
   limit: number,
   offset: number
 ) {
-  return ckanGet(baseUrl, "package_search", {
+  return ckanGet(baseUrl, apiStyle, "package_search", {
     q: keyword,
     rows: limit,
     start: offset,
   });
 }
 
-export async function getDataset(baseUrl: string, id: string) {
-  return ckanGet(baseUrl, "package_show", { id });
+export async function getDataset(
+  baseUrl: string,
+  apiStyle: ApiStyle,
+  id: string
+) {
+  return ckanGet(baseUrl, apiStyle, "package_show", { id });
 }
 
 export async function searchRecords(
   baseUrl: string,
+  apiStyle: ApiStyle,
   resourceId: string,
   query: string | undefined,
   limit: number,
@@ -115,7 +130,7 @@ export async function searchRecords(
     params.filters = JSON.stringify(filters);
   }
 
-  const result = await ckanGet(baseUrl, "datastore_search", params);
+  const result = await ckanGet(baseUrl, apiStyle, "datastore_search", params);
 
   if (isCkanError(result)) {
     if (isDatastoreUnavailable(result.error)) {
@@ -127,8 +142,12 @@ export async function searchRecords(
   return result;
 }
 
-export async function listOrganizations(baseUrl: string, limit: number) {
-  return ckanGet(baseUrl, "organization_list", {
+export async function listOrganizations(
+  baseUrl: string,
+  apiStyle: ApiStyle,
+  limit: number
+) {
+  return ckanGet(baseUrl, apiStyle, "organization_list", {
     limit,
     all_fields: "true",
   });

@@ -9,6 +9,7 @@
 | `sendai` | [仙台市オープンデータ](https://data.city.sendai.jp) |
 | `geospatial` | [G空間情報センター](https://www.geospatial.jp/ckan) |
 | `bodik` | [BODIK（全国自治体オープンデータ）](https://data.bodik.jp) |
+| `shizuoka` | [静岡県オープンデータ](https://opendata.pref.shizuoka.jp)（※標準CKANではなくCMS「シラサギ」独自API。`list_organizations` / `search_records` は非対応。`get_dataset` の `id` には検索結果の `uuid` または `id` を指定する） |
 
 ## 開発の進め方
 
@@ -91,6 +92,11 @@ curl http://localhost:8787/tools/call \
 curl http://localhost:8787/tools/call \
   -H "Content-Type: application/json" \
   -d '{"name":"search_datasets","arguments":{"portal":"bodik","keyword":"施設","limit":5}}'
+
+# 静岡県でデータセット検索
+curl http://localhost:8787/tools/call \
+  -H "Content-Type: application/json" \
+  -d '{"name":"search_datasets","arguments":{"portal":"shizuoka","keyword":"人口","limit":5}}'
 ```
 
 ### その他のツール例
@@ -168,8 +174,8 @@ OpenCode のリモート MCP は **Streamable HTTP（`/mcp`）** に対応して
 |----------|------|
 | `search_datasets` | キーワードでデータセット検索 |
 | `get_dataset` | データセット詳細・リソース一覧 |
-| `search_records` | DataStore レコード検索（未対応時は `{ "available": false }`）。G空間情報センターは `datastore_search` 非対応 |
-| `list_organizations` | 組織一覧 |
+| `search_records` | DataStore レコード検索（未対応時は `{ "available": false }`）。G空間情報センター・静岡県は `datastore_search` 非対応 |
+| `list_organizations` | 組織一覧（静岡県は非対応） |
 
 ## ADMIN_TOKEN とは
 

@@ -57,8 +57,8 @@ function isPortalKey(value: unknown): value is PortalKey {
   return typeof value === "string" && value in PORTALS;
 }
 
-function getPortalBaseUrl(portal: PortalKey): string {
-  return PORTALS[portal].url;
+function getPortalConfig(portal: PortalKey) {
+  return PORTALS[portal];
 }
 
 export async function handleToolCall(
@@ -96,7 +96,7 @@ export async function handleToolCall(
     );
   }
 
-  const baseUrl = getPortalBaseUrl(portal);
+  const { url: baseUrl, apiStyle } = getPortalConfig(portal);
 
   try {
     switch (name as ToolName) {
@@ -119,7 +119,7 @@ export async function handleToolCall(
           c.env.CACHE_KV,
           cacheKey,
           CACHE_TTL.DATASET_SEARCH,
-          () => searchDatasets(baseUrl, keyword, limit, offset)
+          () => searchDatasets(baseUrl, apiStyle, keyword, limit, offset)
         );
 
         if (isCkanError(result)) {
@@ -159,7 +159,7 @@ export async function handleToolCall(
           c.env.CACHE_KV,
           cacheKey,
           CACHE_TTL.DATASET_DETAIL,
-          () => getDataset(baseUrl, id)
+          () => getDataset(baseUrl, apiStyle, id)
         );
 
         if (isCkanError(result)) {
@@ -211,6 +211,7 @@ export async function handleToolCall(
           () =>
             searchRecords(
               baseUrl,
+              apiStyle,
               resourceId,
               query,
               limit,
@@ -246,7 +247,7 @@ export async function handleToolCall(
           c.env.CACHE_KV,
           cacheKey,
           CACHE_TTL.ORGANIZATIONS,
-          () => listOrganizations(baseUrl, limit)
+          () => listOrganizations(baseUrl, apiStyle, limit)
         );
 
         if (isCkanError(result)) {

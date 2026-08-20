@@ -7,7 +7,7 @@ export const TOOLS = [
       properties: {
         portal: {
           type: "string",
-          enum: ["sendai", "geospatial", "bodik"],
+          enum: ["sendai", "geospatial", "bodik", "shizuoka"],
           description: "対象ポータル",
         },
         keyword: {
@@ -36,7 +36,7 @@ export const TOOLS = [
       properties: {
         portal: {
           type: "string",
-          enum: ["sendai", "geospatial", "bodik"],
+          enum: ["sendai", "geospatial", "bodik", "shizuoka"],
           description: "対象ポータル",
         },
         id: {
@@ -55,7 +55,7 @@ export const TOOLS = [
       properties: {
         portal: {
           type: "string",
-          enum: ["sendai", "geospatial", "bodik"],
+          enum: ["sendai", "geospatial", "bodik", "shizuoka"],
           description: "対象ポータル",
         },
         resource_id: {
@@ -87,7 +87,7 @@ export const TOOLS = [
       properties: {
         portal: {
           type: "string",
-          enum: ["sendai", "geospatial", "bodik"],
+          enum: ["sendai", "geospatial", "bodik", "shizuoka"],
           description: "対象ポータル",
         },
         limit: {
