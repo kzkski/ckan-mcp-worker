@@ -43,7 +43,9 @@ npm run deploy:prod
 
 ### GitHub Actions（自動）
 
-`main` への push で、CI 成功後に自動デプロイされます。
+**現在は自動デプロイを停止しています**（`CLOUDFLARE_API_TOKEN` が無効なため）。本番反映は上記の `npm run deploy:prod` で手動実行してください（Actions の「Deploy」ワークフローを手動実行（`workflow_dispatch`）することもできますが、Secrets の更新が必要です）。
+
+再開するには、`CLOUDFLARE_API_TOKEN` を更新したうえで [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) の `push` トリガーのコメントアウトを外すと、`main` への push で CI 成功後に自動デプロイされるようになります。
 
 ### 必要な GitHub Secrets
 

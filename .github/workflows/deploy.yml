@@ -1,8 +1,10 @@
 name: Deploy
 
+# 自動デプロイは一時停止中（CLOUDFLARE_API_TOKEN が無効なため）。
+# 再開するには Secrets を更新し、下の push トリガーのコメントを外す。
 on:
-  push:
-    branches: [main]
+  # push:
+  #   branches: [main]
   workflow_dispatch:
 
 concurrency:

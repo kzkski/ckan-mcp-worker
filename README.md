@@ -138,7 +138,7 @@ npm run setup:prod -- --deploy
 npm run deploy:prod
 ```
 
-`main` への push で [GitHub Actions](./.github/workflows/deploy.yml) からも自動デプロイできます（要 `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`）。
+[GitHub Actions](./.github/workflows/deploy.yml) による自動デプロイは現在停止中です（`CLOUDFLARE_API_TOKEN` 更新後に再開可能。詳細は [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)）。
 
 デプロイ後は `https://ckan-mcp-worker.<your-subdomain>.workers.dev` でアクセスできます。
 
